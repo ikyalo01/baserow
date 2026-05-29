@@ -4,6 +4,11 @@ set -euo pipefail
 
 export BASEROW_PUBLIC_URL=${BASEROW_PUBLIC_URL:-https://$HEROKU_APP_NAME.herokuapp.com}
 export BASEROW_CADDY_ADDRESSES=":$PORT"
+# Heroku injects $PORT and Caddy binds it as the public entrypoint. Nuxt's Nitro
+# server, however, also auto-binds to $PORT when it is set, which collides with Caddy
+# (EADDRINUSE) and crashes the web-frontend. Pin the frontend to the internal port
+# 3000 that Caddy proxies to. NITRO_PORT takes precedence over PORT in Nitro.
+export NITRO_PORT=3000
 export REDIS_URL=${REDIS_TLS_URL:-${REDIS_URL:-}}
 # Heroku's Redis / Key-Value Store hands out a rediss:// URL backed by a self-signed
 # certificate. Celery (broker, result backend and the redbeat scheduler) refuses to

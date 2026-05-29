@@ -35,6 +35,14 @@ export DISABLE_VOLUME_CHECK=yes
 export BASEROW_AMOUNT_OF_WORKERS=${BASEROW_AMOUNT_OF_WORKERS:-1}
 export BASEROW_AMOUNT_OF_GUNICORN_WORKERS=${BASEROW_AMOUNT_OF_GUNICORN_WORKERS:-$BASEROW_AMOUNT_OF_WORKERS}
 
+# Heroku dynos report the underlying host's full CPU count, so glibc's malloc creates
+# a large number of per-thread arenas (up to 8 x nCPU), each of which can grow to tens
+# of MB. Across the multi-threaded backend (gunicorn/uvicorn), Celery worker and beat
+# processes this bloats resident memory by hundreds of MB and triggers Heroku's R14
+# "Memory quota exceeded", which in turn destabilises the long-lived WebSocket used for
+# real-time updates. Capping the arenas keeps the all-in-one stack within a 1GB dyno.
+export MALLOC_ARENA_MAX=${MALLOC_ARENA_MAX:-2}
+
 # Disable auto https redirect because otherwise it will make Caddy bind on port 80.
 # This is not allowed by Heroku, and will prevent it from starting.
 export BASEROW_CADDY_GLOBAL_CONF="auto_https disable_redirects

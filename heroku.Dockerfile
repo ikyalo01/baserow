@@ -8,7 +8,10 @@
 # NODE_ENV is intentionally left unset so devDependencies (the build toolchain)
 # are installed.
 # =============================================================================
+# Global build args (declared before any FROM so they are usable in every FROM).
 ARG NODE_BASE_IMAGE="node:24.14.0-trixie-slim"
+ARG FROM_IMAGE=baserow/baserow:2.2.2
+
 # hadolint ignore=DL3006
 FROM ${NODE_BASE_IMAGE} AS frontend-deps
 
@@ -60,7 +63,6 @@ RUN yarn run build
 # Stage 2 - Heroku runtime image, based on the published all-in-one image with
 # the rebuilt frontend bundle and the modified backend source overlaid on top.
 # =============================================================================
-ARG FROM_IMAGE=baserow/baserow:2.2.2
 # This is pinned as version pinning is done by the CI setting FROM_IMAGE.
 # hadolint ignore=DL3006
 FROM $FROM_IMAGE AS image_base

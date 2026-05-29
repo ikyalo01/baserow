@@ -1,14 +1,35 @@
 # =============================================================================
-# Stage 1 - Rebuild the web-frontend (Nuxt) from source.
+# Stage 1a - Install frontend dependencies.
 #
-# The published base image below ships a pre-compiled web-frontend bundle, so
-# any local changes under web-frontend/, premium/web-frontend/ or
-# enterprise/web-frontend/ are NOT picked up unless we rebuild that bundle here
-# and overlay it onto the base image in stage 2. The repo VERSION matches the
-# pinned base image version, so the rebuilt frontend stays API-compatible with
-# the backend that already lives in the base image.
+# Dependencies are installed with ONLY package.json/yarn.lock present (no app
+# source). The package's `postinstall` runs `nuxt prepare`, which fails if the
+# full source tree is present before node_modules are fully resolved, so we keep
+# this step source-free (mirroring the upstream web-frontend Dockerfile).
+# NODE_ENV is intentionally left unset so devDependencies (the build toolchain)
+# are installed.
 # =============================================================================
 ARG NODE_BASE_IMAGE="node:24.14.0-trixie-slim"
+# hadolint ignore=DL3006
+FROM ${NODE_BASE_IMAGE} AS frontend-deps
+
+ENV NUXT_TELEMETRY_DISABLED=1 \
+    YARN_CACHE_FOLDER=/tmp/.yarn-cache
+
+WORKDIR /baserow/web-frontend
+COPY web-frontend/package.json /baserow/web-frontend/package.json
+COPY web-frontend/yarn.lock /baserow/web-frontend/yarn.lock
+RUN yarn install --pure-lockfile --cache-folder "$YARN_CACHE_FOLDER"
+
+
+# =============================================================================
+# Stage 1b - Rebuild the web-frontend (Nuxt) bundle from source.
+#
+# The published base image used in stage 2 ships a pre-compiled web-frontend, so
+# local changes under web-frontend/, premium/web-frontend/ or
+# enterprise/web-frontend/ are only picked up if we recompile the bundle here and
+# overlay it. The repo VERSION matches the pinned base image version, so the
+# rebuilt frontend stays API-compatible with the backend in the base image.
+# =============================================================================
 # hadolint ignore=DL3006
 FROM ${NODE_BASE_IMAGE} AS frontend-builder
 
@@ -18,19 +39,20 @@ ENV NUXT_TELEMETRY_DISABLED=1 \
 
 RUN mkdir -p /baserow/web-frontend /baserow/premium/web-frontend /baserow/enterprise/web-frontend
 
-# Copy the frontend source (node_modules/.output/.nuxt are excluded via .dockerignore).
+# Copy source (node_modules/.output/.nuxt are excluded via .dockerignore).
 COPY web-frontend /baserow/web-frontend/
 COPY premium/web-frontend /baserow/premium/web-frontend/
 COPY enterprise/web-frontend /baserow/enterprise/web-frontend/
 
-WORKDIR /baserow/web-frontend
-RUN yarn install --pure-lockfile --cache-folder "$YARN_CACHE_FOLDER"
+# Reuse the dependencies installed in the deps stage.
+COPY --from=frontend-deps /baserow/web-frontend/node_modules /baserow/web-frontend/node_modules
 
 # premium and enterprise are sibling node packages that resolve their deps
 # through the main web-frontend node_modules.
 RUN ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules && \
     ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 
+WORKDIR /baserow/web-frontend
 RUN yarn run build
 
 
@@ -55,7 +77,8 @@ COPY deploy/heroku/heroku_env.sh /baserow/supervisor/env/heroku_env.sh
 
 # Overlay the freshly built Nuxt bundle so the premium/enterprise frontend
 # changes (unlocked features + Licenses in the main sidebar) are actually served.
-# The all-in-one runtime serves the web-frontend from this .output directory.
+# The all-in-one runtime serves the web-frontend from this .output directory via
+# `node --import ./env-remap.mjs .output/server/index.mjs`.
 COPY --from=frontend-builder --chown=9999:9999 /baserow/web-frontend/.output /baserow/web-frontend/.output
 
 # Overlay the modified premium backend source (license feature unlock). PYTHONPATH

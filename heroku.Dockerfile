@@ -83,13 +83,14 @@ COPY deploy/heroku/heroku_env.sh /baserow/supervisor/env/heroku_env.sh
 # `node --import ./env-remap.mjs .output/server/index.mjs`.
 COPY --from=frontend-builder --chown=9999:9999 /baserow/web-frontend/.output /baserow/web-frontend/.output
 
-# Overlay the backend source trees so all local backend changes (license unlock,
-# disabled baserow.io SaaS calls, etc.) ship. The repo VERSION matches the pinned
-# base image and these dirs are what PYTHONPATH imports, so overlaying the source
-# is enough (the venv with third-party deps comes from the base image).
-COPY --chown=9999:9999 backend/src /baserow/backend/src
-COPY --chown=9999:9999 premium/backend/src /baserow/premium/backend/src
-COPY --chown=9999:9999 enterprise/backend/src /baserow/enterprise/backend/src
+# Overlay ONLY the specific backend modules changed in this fork (license unlock +
+# disabled baserow.io SaaS calls). These edits add no new dependencies, so they are
+# safe to drop onto the pinned base image's venv. We deliberately do NOT overlay the
+# whole src trees, because the develop branch is slightly ahead of the base image and
+# pulls in newer modules whose third-party deps (e.g. `atlassian`) aren't installed.
+COPY --chown=9999:9999 premium/backend/src/baserow_premium/license/plugin.py /baserow/premium/backend/src/baserow_premium/license/plugin.py
+COPY --chown=9999:9999 premium/backend/src/baserow_premium/license/handler.py /baserow/premium/backend/src/baserow_premium/license/handler.py
+COPY --chown=9999:9999 backend/src/baserow/core/user/handler.py /baserow/backend/src/baserow/core/user/handler.py
 
 # IMPORTANT: do not remove these. Heroku wraps the release/run commands in a /bin/sh
 # log-streaming script and passes it as arguments to the image. The base baserow image's

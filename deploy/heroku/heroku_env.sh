@@ -5,6 +5,18 @@ set -euo pipefail
 export BASEROW_PUBLIC_URL=${BASEROW_PUBLIC_URL:-https://$HEROKU_APP_NAME.herokuapp.com}
 export BASEROW_CADDY_ADDRESSES=":$PORT"
 export REDIS_URL=${REDIS_TLS_URL:-${REDIS_URL:-}}
+# Heroku's Redis / Key-Value Store hands out a rediss:// URL backed by a self-signed
+# certificate. Celery (broker, result backend and the redbeat scheduler) refuses to
+# start on a rediss:// URL unless `ssl_cert_reqs` is present, so ensure it is set to
+# `none` (the cert cannot be verified). Without this the web dyno boots and then
+# crashes when beat/celery come up.
+if [[ "${REDIS_URL:-}" == rediss://* && "${REDIS_URL}" != *ssl_cert_reqs=* ]]; then
+  if [[ "${REDIS_URL}" == *\?* ]]; then
+    export REDIS_URL="${REDIS_URL}&ssl_cert_reqs=none"
+  else
+    export REDIS_URL="${REDIS_URL}?ssl_cert_reqs=none"
+  fi
+fi
 export DJANGO_SETTINGS_MODULE='baserow.config.settings.heroku'
 export BASEROW_RUN_MINIMAL=yes
 export DISABLE_EMBEDDED_PSQL=yes

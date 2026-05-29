@@ -12,7 +12,7 @@ from baserow_premium.license.cache import (
 )
 from baserow_premium.license.exceptions import InvalidLicenseError
 from baserow_premium.license.models import License
-from baserow_premium.license.registries import LicenseType, SeatUsageSummary
+from baserow_premium.license.registries import LicenseType, SeatUsageSummary, license_type_registry
 
 User = get_user_model()
 LICENSE_CACHE_KEY_PREFIX = "license"
@@ -77,7 +77,12 @@ class LicensePlugin:
         :return: True if the feature is enabled globally for all users.
         """
 
-        # Self-hosted unlock: every premium and enterprise feature is enabled.
+        # RBAC is available in the UI (user_has_feature) but not enforced as
+        # restrictions, so every workspace member keeps full access without roles.
+        if feature == "rbac":
+            return False
+
+        # Self-hosted unlock: every other premium and enterprise feature is enabled.
         return True
 
     def user_has_feature_instance_wide(self, feature: str, user: AbstractUser) -> bool:
@@ -118,13 +123,15 @@ class LicensePlugin:
             f"{LICENSE_CACHE_KEY_PREFIX}_features_{workspace.id}_{user.id}",
             _available_features,
         )
-        return feature in available_features
+        # Self-hosted unlock: every user has every feature for every workspace.
+        return True
 
     def get_active_instance_wide_license_types(
         self, user: Optional[AbstractUser]
     ) -> Generator[LicenseType, None, None]:
-        for available_license in self.get_active_instance_wide_licenses(user):
-            yield available_license.license_type
+        # Self-hosted unlock: every user is treated as having every license type
+        # instance-wide, so active_licenses in the API reflects full access for all.
+        yield from license_type_registry.get_all()
 
     def get_active_instance_wide_licenses(
         self, user: Optional[User]

@@ -53,11 +53,18 @@ export class LicenseHandler {
       userData?.active_licenses?.instance_wide ||
       settings?.instance_wide_licenses ||
       {}
-    return Object.entries(instanceWideLicenses)
+    const fromUserData = Object.entries(instanceWideLicenses)
       .filter(
         ([key, enabled]) => enabled && this.$registry.exists('license', key)
       )
       .map(([key, _]) => this.$registry.get('license', key))
+
+    if (fromUserData.length > 0) {
+      return fromUserData
+    }
+
+    // Self-hosted unlock: every user has every registered license type.
+    return Object.values(this.$registry.getAll('license'))
   }
 
   /**
@@ -84,23 +91,26 @@ export class LicenseHandler {
       this.getters['auth/getAdditionalUserData']?.active_licenses
         ?.per_workspace || {}
 
-    return Object.entries(perWorkspaceLicenses[workspaceId] || {})
+    const fromUserData = Object.entries(perWorkspaceLicenses[workspaceId] || {})
       .filter(
         ([key, enabled]) => enabled && this.$registry.exists('license', key)
       )
       .map(([key, _]) => this.$registry.get('license', key))
+
+    if (fromUserData.length > 0) {
+      return fromUserData
+    }
+
+    // Self-hosted unlock: every user has every registered license type.
+    return Object.values(this.$registry.getAll('license'))
   }
 
   userHasFeatureEnabledInstanceWide(feature) {
-    return this.instanceWideLicenseTypes().some((t) =>
-      t.getFeatures().includes(feature)
-    )
+    return true
   }
 
   userHasFeatureEnabledForWorkspaceOnly(feature, workspaceId) {
-    return this.getWorkspaceLicenseTypes(workspaceId).some((t) =>
-      t.getFeatures().includes(feature)
-    )
+    return true
   }
 
   hasFeature(feature, forSpecificWorkspace = null) {

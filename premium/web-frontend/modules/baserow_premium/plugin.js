@@ -5,7 +5,6 @@ import {
   ExcelTableExporterType,
   FileTableExporter,
 } from '@baserow_premium/tableExporterTypes'
-import { LicensesAdminType } from '@baserow_premium/adminTypes'
 import rowCommentsStore from '@baserow_premium/store/row_comments'
 import kanbanStore from '@baserow_premium/store/view/kanban'
 import calendarStore from '@baserow_premium/store/view/calendar'
@@ -153,7 +152,6 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('chartFieldFormatting')
 
     $registry.register('plugin', new PremiumPlugin(context))
-    $registry.register('admin', new LicensesAdminType(context))
     $registry.register('exporter', new JSONTableExporter(context))
     $registry.register('exporter', new XMLTableExporter(context))
     $registry.register('exporter', new ExcelTableExporterType(context))

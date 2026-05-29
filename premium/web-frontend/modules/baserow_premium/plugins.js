@@ -1,6 +1,7 @@
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
+import LicensesSidebarWorkspace from '@baserow_premium/components/sidebar/LicensesSidebarWorkspace'
 import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
 import PublicViewExport from '@baserow_premium/components/views/PublicViewExport'
 
@@ -15,6 +16,10 @@ export class PremiumPlugin extends BaserowPlugin {
 
   getHighestLicenseTypeBadge() {
     return HighestLicenseTypeBadge
+  }
+
+  getSidebarWorkspaceComponents(workspace) {
+    return [LicensesSidebarWorkspace]
   }
 
   getAdditionalShareLinkOptions() {

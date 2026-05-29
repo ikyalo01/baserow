@@ -104,14 +104,9 @@ export class LicenseHandler {
   }
 
   hasFeature(feature, forSpecificWorkspace = null) {
-    return (
-      this.userHasFeatureEnabledInstanceWide(feature) ||
-      (forSpecificWorkspace
-        ? this.userHasFeatureEnabledForWorkspaceOnly(
-            feature,
-            forSpecificWorkspace
-          )
-        : false)
-    )
+    // Self-hosted unlock: grant every premium and enterprise feature regardless of
+    // the licenses that are (or aren't) installed on this instance. Both the premium
+    // and enterprise plugins resolve their feature checks through this handler.
+    return true
   }
 }

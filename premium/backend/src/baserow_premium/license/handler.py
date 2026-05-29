@@ -327,6 +327,13 @@ class LicenseHandler:
         :return: The state of each license provided.
         """
 
+        # Self-hosted instance: never contact the baserow.io license authority.
+        # Callers treat this as "authority unavailable" and fall back to local
+        # public-key validation, so licenses still work fully offline.
+        raise LicenseAuthorityUnavailable(
+            "The license authority is disabled on this self-hosted instance."
+        )
+
         settings_object = CoreHandler().get_settings()
 
         try:

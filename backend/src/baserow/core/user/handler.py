@@ -1047,6 +1047,9 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :param how: How the user found Baserow.
         """
 
+        # Self-hosted instance: never share onboarding details with baserow.io.
+        return
+
         settings_object = CoreHandler().get_settings()
         base_url, headers = get_baserow_saas_base_url()
         authority_url = f"{base_url}/api/saas/onboarding/additional-details/"

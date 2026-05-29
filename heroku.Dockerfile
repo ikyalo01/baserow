@@ -83,9 +83,13 @@ COPY deploy/heroku/heroku_env.sh /baserow/supervisor/env/heroku_env.sh
 # `node --import ./env-remap.mjs .output/server/index.mjs`.
 COPY --from=frontend-builder --chown=9999:9999 /baserow/web-frontend/.output /baserow/web-frontend/.output
 
-# Overlay the modified premium backend source (license feature unlock). PYTHONPATH
-# already includes /baserow/premium/backend/src, so replacing this module is enough.
-COPY --chown=9999:9999 premium/backend/src/baserow_premium/license/plugin.py /baserow/premium/backend/src/baserow_premium/license/plugin.py
+# Overlay the backend source trees so all local backend changes (license unlock,
+# disabled baserow.io SaaS calls, etc.) ship. The repo VERSION matches the pinned
+# base image and these dirs are what PYTHONPATH imports, so overlaying the source
+# is enough (the venv with third-party deps comes from the base image).
+COPY --chown=9999:9999 backend/src /baserow/backend/src
+COPY --chown=9999:9999 premium/backend/src /baserow/premium/backend/src
+COPY --chown=9999:9999 enterprise/backend/src /baserow/enterprise/backend/src
 
 # IMPORTANT: do not remove these. Heroku wraps the release/run commands in a /bin/sh
 # log-streaming script and passes it as arguments to the image. The base baserow image's

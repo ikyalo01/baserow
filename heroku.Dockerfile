@@ -12,3 +12,11 @@ RUN mkdir -p "$DATA_DIR" && \
     chown -R 9999:9999 "$DATA_DIR"
 
 COPY deploy/heroku/heroku_env.sh /baserow/supervisor/env/heroku_env.sh
+
+# IMPORTANT: do not remove these. Heroku wraps the release/run commands in a /bin/sh
+# log-streaming script and passes it as arguments to the image. The base baserow image's
+# ENTRYPOINT is ./baserow.sh, which would then receive that wrapper as its first argument
+# and merely print its usage text (release fails with exit 1). Clearing ENTRYPOINT and CMD
+# makes Heroku's release/run commands execute as a plain shell command.
+ENTRYPOINT []
+CMD []

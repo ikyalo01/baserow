@@ -4,7 +4,7 @@ set -euo pipefail
 
 export BASEROW_PUBLIC_URL=${BASEROW_PUBLIC_URL:-https://$HEROKU_APP_NAME.herokuapp.com}
 export BASEROW_CADDY_ADDRESSES=":$PORT"
-export REDIS_URL=${REDIS_TLS_URL:-$REDIS_URL}
+export REDIS_URL=${REDIS_TLS_URL:-${REDIS_URL:-}}
 export DJANGO_SETTINGS_MODULE='baserow.config.settings.heroku'
 export BASEROW_RUN_MINIMAL=yes
 export DISABLE_EMBEDDED_PSQL=yes
@@ -23,14 +23,19 @@ export BASEROW_AMOUNT_OF_GUNICORN_WORKERS=${BASEROW_AMOUNT_OF_GUNICORN_WORKERS:-
 export BASEROW_CADDY_GLOBAL_CONF="auto_https disable_redirects
 http_port $PORT"
 
-export EMAIL_SMTP="true"
-export EMAIL_SMTP_USE_TLS=""
-export FROM_EMAIL="no-reply@$MAILGUN_DOMAIN"
+# Only configure SMTP email when the Mailgun add-on has actually been provisioned.
+# If the add-on failed to attach (e.g. an unverified Heroku account), these vars are
+# unset and we must not let `set -u` abort the whole release/start with email broken.
+if [ -n "${MAILGUN_DOMAIN:-}" ] && [ -n "${MAILGUN_SMTP_SERVER:-}" ]; then
+  export EMAIL_SMTP="true"
+  export EMAIL_SMTP_USE_TLS=""
+  export FROM_EMAIL="no-reply@$MAILGUN_DOMAIN"
 
-export EMAIL_SMTP_HOST=$MAILGUN_SMTP_SERVER
-export EMAIL_SMTP_PORT=$MAILGUN_SMTP_PORT
-export EMAIL_SMTP_USER=$MAILGUN_SMTP_LOGIN
-export EMAIL_SMTP_PASSWORD=$MAILGUN_SMTP_PASSWORD
+  export EMAIL_SMTP_HOST=$MAILGUN_SMTP_SERVER
+  export EMAIL_SMTP_PORT=$MAILGUN_SMTP_PORT
+  export EMAIL_SMTP_USER=$MAILGUN_SMTP_LOGIN
+  export EMAIL_SMTP_PASSWORD=$MAILGUN_SMTP_PASSWORD
+fi
 # Heroku generates a random user who runs this container, set DOCKER_USER to that user
 # so we can setup the DATA_DIR.
 DOCKER_USER=$(whoami)

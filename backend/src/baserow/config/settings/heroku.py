@@ -53,4 +53,14 @@ CELERY_REDIS_MAX_CONNECTIONS = min(
     10,
 )
 
+# Run the Celery worker with the threads pool instead of the default prefork pool.
+# Prefork spawns a separate child process for each concurrency slot in addition to the
+# coordinator process. On Heroku's single all-in-one dyno that extra Python process
+# costs ~150-200MB of resident memory while giving no extra throughput at concurrency 1
+# (Baserow already runs a single combined worker here). The threads pool executes tasks
+# inside the main worker process, preserving the same one-task-at-a-time behaviour while
+# keeping the whole stack comfortably under the dyno's 1GB memory quota (avoiding R14,
+# which previously destabilised the real-time WebSocket).
+CELERY_WORKER_POOL = "threads"
+
 HEROKU_ENABLED = True

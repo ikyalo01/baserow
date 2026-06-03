@@ -1,5 +1,36 @@
 # GitHub Workflows
 
+## Heroku scouter scale schedule
+
+**File:** `heroku-scouter-scale.yml`
+
+Scales the **scouter** Heroku app web dyno to **0** during off-hours and back to **1 × Standard-2X** on weekday mornings to save dyno cost (~$50/mo when off). **Postgres and Redis add-ons still bill ~$20/mo** while the dyno is stopped.
+
+### Default schedule (UTC)
+
+| Action | Cron | When |
+|--------|------|------|
+| Scale down | `0 5 * * *` | Every day at 05:00 UTC |
+| Scale up | `0 14 * * 1-5` | Monday–Friday at 14:00 UTC only |
+
+Weekends stay at `web=0` until Monday scale-up. Adjust crontab in the workflow file for your timezone ([crontab.guru](https://crontab.guru/)).
+
+### Setup (one time)
+
+1. Create a Heroku API key: [dashboard.heroku.com/account](https://dashboard.heroku.com/account) → API Key.
+2. In this GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
+3. Name: `HEROKU_API_KEY`, value: your API key.
+
+### Manual run
+
+**Actions → Heroku scouter scale schedule → Run workflow** → choose `scale-down` or `scale-up`.
+
+### App URL when scaled up
+
+https://scouter-c07c9a4981e4.herokuapp.com/
+
+---
+
 ## Database Team PR Automation
 
 **File:** `database-projects-pr-workflow.yml`

@@ -1,0 +1,78 @@
+# Scale the Heroku "scouter" web dyno to zero during off-hours to reduce dyno charges.
+# Postgres and Redis add-ons still bill ~$20/mo while the dyno is at 0.
+#
+# Setup: GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#   Name: HEROKU_API_KEY
+#   Value: your Heroku account API key (Account settings → API Key)
+#
+# Customize times: edit the cron expressions below (UTC). https://crontab.guru/
+
+name: Heroku scouter scale schedule
+
+on:
+  schedule:
+    # Scale down daily at 05:00 UTC (~midnight US Eastern, varies with DST)
+    - cron: '0 5 * * *'
+    # Scale up Mon–Fri at 14:00 UTC (~9am US Eastern). No weekend scale-up.
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Force scale-down (web=0) or scale-up (web=1 Standard-2X)
+        required: true
+        type: choice
+        options:
+          - scale-down
+          - scale-up
+
+env:
+  HEROKU_APP_NAME: scouter
+  HEROKU_DYNO_TYPE: web
+  HEROKU_DYNO_SIZE: standard-2x
+
+jobs:
+  scale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide scale action
+        id: plan
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 5 * * *" ]; then
+            echo "action=scale-down" >> "$GITHUB_OUTPUT"
+          else
+            echo "action=scale-up" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Scale Heroku formation
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          if [ -z "$HEROKU_API_KEY" ]; then
+            echo "::error::HEROKU_API_KEY secret is not set. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+
+          ACTION="${{ steps.plan.outputs.action }}"
+          if [ "$ACTION" = "scale-down" ]; then
+            PAYLOAD='{"updates":[{"type":"'"$HEROKU_DYNO_TYPE"'","quantity":0}]}'
+            echo "Scaling $HEROKU_APP_NAME $HEROKU_DYNO_TYPE to 0 (app offline, ~\$50/mo dyno savings)."
+          else
+            PAYLOAD='{"updates":[{"type":"'"$HEROKU_DYNO_TYPE"'","quantity":1,"size":"'"$HEROKU_DYNO_SIZE"'"}]}'
+            echo "Scaling $HEROKU_APP_NAME $HEROKU_DYNO_TYPE to 1 x $HEROKU_DYNO_SIZE (cold start ~1–3 min)."
+          fi
+
+          HTTP_CODE=$(curl -sS -o /tmp/heroku-formation.json -w "%{http_code}" \
+            -X PATCH "https://api.heroku.com/apps/${HEROKU_APP_NAME}/formation" \
+            -H "Accept: application/vnd.heroku+json; version=3" \
+            -H "Authorization: Bearer ${HEROKU_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          cat /tmp/heroku-formation.json
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Heroku API returned HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Done."
